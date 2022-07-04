@@ -1,0 +1,6 @@
+[submodule "eYs3D/cfg"]
+	path = eYs3D/cfg
+	url = git@github.com:eYs3D/eys3d_config.git
+[submodule "lib/eSPDI"]
+	path = lib/eSPDI
+	url = git@github.com:eYs3D/eSPDI_linux.git
