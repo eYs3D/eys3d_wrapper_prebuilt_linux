@@ -28,8 +28,8 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib
         )
 
 set(DEPENDENCY_LIBS
-                eSPDI_X86_64
-                eys3d)
+                eSPDI_${ESPDI_PLATFORM_NAME}
+                eys3d.${ESPDI_PLATFORM_NAME})
 
 set(CMAKE_INSTALL_RPATH ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
