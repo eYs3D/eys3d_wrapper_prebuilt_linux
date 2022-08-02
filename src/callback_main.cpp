@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 eYs3D Corporation
+ * Copyright (C) 2022 eYs3D Corporation
  * All rights reserved.
  * This project is licensed under the Apache License, Version 2.0.
  */
@@ -507,6 +507,27 @@ printf("========================Filter result: %d========================\n",mIs
                                  pc_frame_callback,
                                  imu_data_callback);
 #endif
+#if 0   // 8073 sample interleave L' + D
+        // device->enableInterleaveMode(true); // Un-comment this to enable Interleave Mode.
+        device->enableExtendIR(true);
+
+        auto irProp = device->getIRProperty();
+        irProp.setIRValue(96);
+        device->setIRProperty(irProp);
+
+        ret = device->initStream(libeYs3D::video::COLOR_RAW_DATA_TYPE::COLOR_RAW_DATA_YUY2,
+                                 1104, 848, 30,
+                                 libeYs3D::video::DEPTH_RAW_DATA_TYPE::DEPTH_RAW_DATA_11_BITS,
+                                 1104, 848,
+                                 DEPTH_IMG_COLORFUL_TRANSFER,
+                                 IMAGE_SN_SYNC,
+                                 1, // rectifyLogIndex
+                                 color_image_callback,
+                                 depth_image_callback,
+                                 nullptr,
+                                 nullptr);
+#endif
+
 #if 0   // 8036 scale down test
         ret = device->initStream(libeYs3D::video::COLOR_RAW_DATA_TYPE::COLOR_RAW_DATA_YUY2,
                                  1280, 720, 30,

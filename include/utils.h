@@ -85,5 +85,3 @@ int is_big_endian(void);
 char* dirname(char *path);
 int clock_gettime(int, struct timespec *tv);
 #endif
-void sha256_buffer(const void *buffer, size_t bufferLength,
-                   char *outputBuffer, size_t outputBufferLength);
