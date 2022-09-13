@@ -37,7 +37,8 @@ public:
     std::vector<uint8_t> nZDTable;
     uint16_t getDepth( int x, int y) const;
     uint16_t getZValue(uint16_t depth) const;
-    
+    uint64_t processedBufferSize;   // e.g. 720p Decimation filter resized dataVec to 360p, but capacity is still the same.
+
 #ifdef DEVICE_MEMORY_ALLOCATOR
     std::vector<uint8_t, libeYs3D::devices::MemoryAllocator<uint8_t>> dataVec;
 #else

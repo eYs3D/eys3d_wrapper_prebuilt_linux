@@ -88,7 +88,7 @@ private:
     //   1) wait for video frame in mDataQueue
     //   2) process video frame
     //   3) Push frame back to mFreeQueue
-    static constexpr int kMaxFrames = 64;
+    static constexpr int kMaxFrames = 2;
     base::MessageChannel<PCFrame, kMaxFrames> mPCDataQueue;
     base::MessageChannel<PCFrame, kMaxFrames> mPCFreeQueue;
     base::MessageChannel<Frame, kMaxFrames> mColorFrameQueue;
@@ -102,10 +102,22 @@ private:
 	base::MessageChannel<int, 1> mSnapshotBackSignal;
     base::MessageChannel<int, 1> mSnapshotFinishedSignal;
     bool mIsStopped = false;
+    bool dosnapshot_flag = false;
     
     Frame *mColorFrame;
     Frame *mDepthFrame;
     uint32_t mExpectedFrameIndex = 0;
+    Frame *color_temp;
+    Frame *depth_temp;
+    libeYs3D::video::Frame color_with_IR_Frame;
+    libeYs3D::video::Frame depth_without_IR_Frame;
+    int color_current_SN = 0;
+    int depth_current_SN = 0;
+    uint16_t IRvalue_original = 0;
+    libeYs3D::devices::IRProperty property;
+    bool IR_lock = false;
+
+
     
     Producer::Callback mColorProducerCallback;
     Producer::Callback mDepthProducerCallback;

@@ -26,10 +26,12 @@ public:
 
 protected:
     ColorFrameProducer(CameraDevice *cameraDevice);
-
     virtual int getRawFormatBytesPerPixel(uint32_t format) override;
     virtual int readFrame(Frame *frame) override;
     virtual int produceRGBFrame(Frame *frame) override;
+    virtual int performPostProcessFilter(Frame *frame) override;
+    int getFilteredWidth() override;
+    int getFilteredHeight() override;
     virtual int performFiltering(Frame *frame) override;
     virtual int performInterleave(Frame *frame) override;
     virtual int performAccuracyComputation(Frame *frame) override;

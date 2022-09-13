@@ -22,7 +22,7 @@ namespace libeYs3D    {
     }
 }
 
-using libeYs3D::devices::CameraDevice;
+class CameraDevice;
 
 namespace libeYs3D    {
 namespace video    {

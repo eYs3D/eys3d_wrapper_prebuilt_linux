@@ -42,7 +42,7 @@ public:
     
     bool operator==(const IRProperty &rhs) const;
 
-protected:
+//protected:
     IRProperty(uint16_t initValue = (1 << 16 - 1), bool extendIR = false);
 
 private:

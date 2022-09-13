@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 eYs3D Corporation
+ * Copyright (C) 2022 eYs3D Corporation
  * All rights reserved.
  * This project is licensed under the Apache License, Version 2.0.
  */
@@ -507,6 +507,35 @@ printf("========================Filter result: %d========================\n",mIs
                                  pc_frame_callback,
                                  imu_data_callback);
 #endif
+#if 0   // 8073 sample interleave L' + D
+        // device->enableInterleaveMode(true); // Un-comment this to enable Interleave Mode.
+
+        device->enableExtendIR(true);
+        auto irProp = device->getIRProperty();
+        irProp.setIRValue(96);
+        device->setIRProperty(irProp);
+
+        /* Spatial Filter Only Support D11 */
+        PostProcessOptions& processOptions = device->getPostProcessOptions();
+        processOptions.enable(true);
+        processOptions.setSpatialOutlierThreshold(3);
+        processOptions.setSpatialFilterKernelSize(7); // Should be odd number
+        processOptions.setDecimationFactor(2);
+        device->setPostProcessOptions(processOptions);
+
+        ret = device->initStream(libeYs3D::video::COLOR_RAW_DATA_TYPE::COLOR_RAW_DATA_YUY2,
+                                 1104, 848, 30,
+                                 libeYs3D::video::DEPTH_RAW_DATA_TYPE::DEPTH_RAW_DATA_11_BITS,
+                                 1104, 848,
+                                 DEPTH_IMG_COLORFUL_TRANSFER,
+                                 IMAGE_SN_SYNC,
+                                 1, // rectifyLogIndex
+                                 color_image_callback,
+                                 depth_image_callback,
+                                 nullptr,
+                                 nullptr);
+#endif
+
 #if 0   // 8036 scale down test
         ret = device->initStream(libeYs3D::video::COLOR_RAW_DATA_TYPE::COLOR_RAW_DATA_YUY2,
                                  1280, 720, 30,
@@ -596,6 +625,16 @@ printf("========================Filter result: %d========================\n",mIs
         if(ret != 0)    break;
                          
         device->enableStream();
+
+#if 0   // Test PostProcessOptions enable disable on streaming
+        sleep(10);
+        processOptions.enable(false);
+        device->setPostProcessOptions(processOptions);
+        sleep(10);
+        processOptions.enable(true);
+        device->setPostProcessOptions(processOptions);
+#endif
+
 
 #if 0
         { // Stream enablement testing
@@ -716,7 +755,7 @@ printf("========================Filter result: %d========================\n",mIs
 		}
 #endif
 
-        sleep(8);
+        sleep(800);
 
         LOG_INFO(LOG_TAG, "\n\nClosing device stream...\n");
         device->closeStream();

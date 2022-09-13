@@ -11,6 +11,7 @@
 #include "devices/IMUDevice.h"
 #include "devices/controller/RegisterReadWriteController.h"
 #include "devices/model/DepthFilterOptions.h"
+#include "devices/model/PostProcessOptions.h"
 #include "devices/model/DepthAccuracyOptions.h"
 #include "devices/model/CameraDeviceProperties.h"
 #include "devices/model/IRProperty.h"
@@ -23,6 +24,7 @@
 #include "sensors/SensorDataProducer.h"
 #include "Constants.h"
 #include "utils.h"
+#include <mutex>
 #ifdef WIN32
 #  include "eSPDI_Common.h"
 #  include "magic.h"
@@ -80,7 +82,7 @@ namespace video    { // forward declaration for friendship assignment
     class ColorFrameProducer;
     class DepthFrameProducer;
     class PCFrameProducer;
-     
+    class PostProcessHandle;
     int color_image_produce_bgr_frame(const libeYs3D::devices::CameraDevice *cameraDevice,
                                       libeYs3D::video::Frame *frame);
     int depth_image_produce_rgb_frame(const libeYs3D::devices::CameraDevice *cameraDevice,
@@ -309,6 +311,7 @@ public:
     FocalLength GetFocalLength() { return m_FocalLength; }
 	void UpdateFocalLength();
     uint16_t nZNear_default;
+    virtual int initIRProperty();
 
 protected:
     explicit CameraDevice(DEVSELINFO *devSelInfo, DEVINFORMATION *deviceInfo, const COLOR_BYTE_ORDER colorByteOrder = COLOR_BYTE_ORDER::COLOR_RGB24);
@@ -322,13 +325,13 @@ protected:
     
     virtual void updateColorPalette();
     
-    virtual int configurePointCloudInfo();
+    virtual int configurePointCloudInfo(bool isUseCached);
     virtual int enableBlockingRead(bool blocking);
-    
+    void initPostProcessOptions();
     virtual int initDepthFilterOptions();
     virtual int initDepthAccuracyOptions();
     virtual int initDepthROIOptions();
-    virtual int initIRProperty();
+    
     virtual int initRegisterReadWriteOptions();
     virtual void adjustDepthInvalidBandPixel();
 
@@ -361,8 +364,11 @@ protected:
     CameraDeviceProperties mCameraDeviceProperties;
     IRProperty mIRProperty;
     const COLOR_BYTE_ORDER mColorByteOrder;
+    PostProcessOptions mPostProcessOptions;
 
 public:
+    PostProcessOptions &getPostProcessOptions();
+    void setPostProcessOptions(PostProcessOptions &postProcessOptions);
     RegisterReadWriteOptions mRegisterReadWriteOptions;
     RegisterReadWriteController mRegisterReadWriteController;
     
@@ -475,8 +481,12 @@ protected:
 	MemoryAllocator<uint16_t> mPixelWordMemoryAllocator;
     MemoryAllocator<uint8_t> mPixelByteMemoryAllocator;
     MemoryAllocator<float> mPixelFloatMemoryAllocator;
+	
     
 #endif
+private:
+    std::mutex mPclInfoLck;
+    int getRectifyMatLogDataTwice();
 };
 
 class CameraDeviceFactory    {

@@ -84,6 +84,23 @@ protected:
     virtual int getRawFormatBytesPerPixel(uint32_t format) = 0;
     virtual int readFrame(Frame *frame) = 0;
     virtual int produceRGBFrame(Frame *frame) = 0;
+    virtual int performPostProcessFilter(Frame *frame) = 0;
+
+    /**
+     * This value is set after Camera::initStream by decimation factor.
+     * It will keep the same as depth width if PostProcessOption !isEnable, and will be resized width if decimation
+     * factor is set >= 2.
+     * @return Decimation filter resized width if PostProcessOption::isEnable().
+     */
+    virtual int getFilteredWidth() = 0;
+    /**
+     * This value is set after Camera::initStream by decimation factor.
+     * It will keep the same as depth height if PostProcessOption !isEnable, and will be resized width if decimation
+     * factor is set >= 2.
+     * @return Decimation filter resized height if PostProcessOption::isEnable().
+     */
+    virtual int getFilteredHeight() = 0;
+
     virtual int performFiltering(Frame *frame) = 0;
     virtual int performInterleave(Frame *frame) = 0;
     virtual int performAccuracyComputation(Frame *frame) = 0;
@@ -146,7 +163,7 @@ private:
     //   1) wait for video frame in mDataQueue
     //   2) process video frame
     //   3) Push frame back to mFreeQueue
-    static constexpr int kMaxFrames = 16;
+    static constexpr int kMaxFrames = 2;
     base::MessageChannel<Frame, kMaxFrames> mDataQueue;
     base::MessageChannel<Frame, kMaxFrames> mStageQueue;
     base::MessageChannel<Frame, kMaxFrames> mStage2Queue;
