@@ -19,6 +19,12 @@ public:
 
     bool mEnabled = false;
 
+    // Color post process parameter
+    int mResizedWidth = 0;
+    int mResizedHeight = 0;
+    float mColorResizeFactor = 1.0f;
+    bool mColorPostProcessEnabled = false;
+
     PostProcessOptions() : PostProcessOptions(5, 16.0f, 1) { }
 
     PostProcessOptions(const int spatialKernelSize, const float spatialOutlierThreshold, const int decimationFactor) {
@@ -104,6 +110,55 @@ public:
      */
     inline void setFilteredHeight (int h) {
         mFilteredHeight = h;
+    }
+
+    /**
+     *
+     * @param w Internal updated by CameraDevice, which inform user currently decimation height.
+     * @return
+     */
+    inline void setResizedWidth (int w) {
+        mResizedWidth = w;
+    }
+
+    /**
+     *
+     * @param h Internal updated by CameraDevice, which inform user currently resized color height.
+     * @return
+     */
+    inline void setResizedHeight (int h) {
+        mResizedHeight = h;
+    }
+
+    /**
+     * Control over color post process filter enablement. Could be switched when device is streaming.
+     * @param enable
+     */
+    void enableColorPostProcess(const bool enable) {
+        mColorPostProcessEnabled = enable;
+    }
+
+    /**
+     * Control over color post process filter enablement. Could be switched when device is streaming.
+     * @return Is currently resizing color stream?
+     */
+    inline bool isEnabledColorPostProcess() const {
+        return mColorPostProcessEnabled;
+    }
+
+    /**
+     * Set color resolution factor. Set before Camera::initStream and after initStream is completed.
+     */
+    void setColorResizeFactor(float factor) {
+        mColorResizeFactor = factor;
+    }
+
+    /**
+     * Get current resolution factor. It won't affect anything when streaming.
+     * @return current color resize factor.
+     */
+    inline float getColorResizeFactor () const {
+        return mColorResizeFactor;
     }
 };
 

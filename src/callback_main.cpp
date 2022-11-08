@@ -181,6 +181,21 @@ static bool pc_frame_callback(const libeYs3D::video::PCFrame *pcFrame)    {
 #endif
 
 #if 0
+    std::vector<CloudPoint> cloud;
+    for (int i = 0; i < pcFrame->rgbDataVec.size(); i+=3) {
+        if (pcFrame->xyzDataVec[i+2] >= 0) {
+            CloudPoint point = {
+                    pcFrame->xyzDataVec[i],pcFrame->xyzDataVec[i+1], pcFrame->xyzDataVec[i+2],
+                    pcFrame->rgbDataVec[i], pcFrame->rgbDataVec[i+1], pcFrame->rgbDataVec[i+2]
+            };
+            cloud.push_back(point);
+        }
+    }
+    std::string file = std::to_string(pcFrame->serialNumber);
+    file.append(".ply");
+    PlyWriter::writePly(cloud, file);
+#endif
+#if 0
     if((count++ % DURATION) == 0)    {
         if(count != 1)    {
             int64_t temp = 0ll;
@@ -521,6 +536,9 @@ printf("========================Filter result: %d========================\n",mIs
         processOptions.setSpatialOutlierThreshold(3);
         processOptions.setSpatialFilterKernelSize(7); // Should be odd number
         processOptions.setDecimationFactor(2);
+        processOptions.setColorResizeFactor(0.5f);
+        processOptions.enableColorPostProcess(true);
+
         device->setPostProcessOptions(processOptions);
 
         ret = device->initStream(libeYs3D::video::COLOR_RAW_DATA_TYPE::COLOR_RAW_DATA_YUY2,
@@ -632,6 +650,12 @@ printf("========================Filter result: %d========================\n",mIs
         device->setPostProcessOptions(processOptions);
         sleep(10);
         processOptions.enable(true);
+        device->setPostProcessOptions(processOptions);
+        sleep(5);
+        processOptions.enableColorPostProcess(true);
+        device->setPostProcessOptions(processOptions);
+        sleep(5);
+        processOptions.enableColorPostProcess(false);
         device->setPostProcessOptions(processOptions);
 #endif
 
