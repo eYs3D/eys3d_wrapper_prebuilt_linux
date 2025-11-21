@@ -7,7 +7,6 @@
 #pragma once
 
 #include "EYS3DSystem.h"
-#include "devices/MemoryAllocator.h"
 #include "devices/IMUDevice.h"
 #include "devices/controller/RegisterReadWriteController.h"
 #include "devices/model/DepthFilterOptions.h"
@@ -15,6 +14,7 @@
 #include "devices/model/DepthAccuracyOptions.h"
 #include "devices/model/CameraDeviceProperties.h"
 #include "devices/model/IRProperty.h"
+#include "devices/ActionCategory.h"
 #include "DMPreview_utility/ModeConfigOptions.h"
 
 #include "video/video.h"
@@ -68,6 +68,8 @@
 
 #define DEFAULT_DEPTH_ROI_PIXELS 20
 
+#define APC_USER_SETTING_OFFSET 5
+
 namespace libeYs3D    {
 
 namespace devices    {
@@ -83,6 +85,8 @@ namespace video    { // forward declaration for friendship assignment
     class DepthFrameProducer;
     class PCFrameProducer;
     class PostProcessHandle;
+    APCImageType::Value depth_raw_type_to_depth_image_type(uint32_t depth_raw_type,
+                                                           const libeYs3D::devices::CameraDevice* cameraDevice);
     int color_image_produce_bgr_frame(const libeYs3D::devices::CameraDevice *cameraDevice,
                                       libeYs3D::video::Frame *frame);
     int depth_image_produce_rgb_frame(const libeYs3D::devices::CameraDevice *cameraDevice,
@@ -190,16 +194,18 @@ public:
                  CONTROL_MODE ctrlMode,
                  int rectifyLogIndex);
 
-    void enableStream();
+    virtual void enableStream();
+	void enableColorAndDepthStream_Python();
     void enableColorStream();
     void enableDepthStream();
     void enablePCStream();
     void enableIMUStream();
-    void pauseStream();
+    virtual void pauseStream();
     void pauseColorStream();
     void pauseDepthStream();
     void pausePCStream();
     void pauseIMUStream();
+	void pauseColorAndDepthStream_Python();
                             
     virtual int closeStream();
     
@@ -215,6 +221,31 @@ public:
     virtual bool isInterleaveModeSupported()    { return false; }
     virtual bool isInterleaveModeEnabled();
     virtual int enableInterleaveMode(bool enable);
+
+    /**
+     * Check if device is using ILM shared free pool.
+     *
+     * @return true if ILMFrameRouter is active, false otherwise
+     */
+    virtual bool isUsingILMSharedPool() const {
+        return false;  // Base class: not using ILM
+    }
+
+    /**
+     * @brief Get DEVSELINFO pointer for specific action category
+     *
+     * Polymorphic endpoint selection for multi-endpoint devices (e.g., 80363).
+     *
+     * Base class: Returns &mDevSelInfo for ALL categories (legacy single-endpoint behavior).
+     * Derived class (80363): Overrides with switch statement to route to correct endpoint.
+     *
+     * Usage: getDeviceInfoByCategory(ActionCategory::CALIBRATION)
+     *        getDeviceInfoByCategory(ActionCategory::IR_CONTROL)
+     *
+     * @param category Action category (CALIBRATION, IR_CONTROL, etc.)
+     * @return Pointer to appropriate DEVSELINFO structure
+     */
+    virtual DEVSELINFO* getDeviceInfoByCategory(ActionCategory category);
 
     // return a copy of current device DepthFilterOptions
     virtual DepthFilterOptions getDepthFilterOptions();
@@ -266,6 +297,26 @@ public:
     virtual int enableHWPP(bool enable);
     virtual int adjustRegisters();
 
+    /**
+     * @brief Hook to close additional devices beyond primary device
+     *
+     * Called after primary device closed in closeStream().
+     * Default: no-op (single-device cameras)
+     * Override: Multi-device cameras (e.g., 80363 closes Mono Path)
+     *
+     * @return APC_OK on success, error code otherwise
+     */
+    virtual int closeAdditionalDevices() { return APC_OK; }
+
+    /**
+     * @brief Hook to enable blocking mode for all devices
+     *
+     * Called in initStream() after devices opened.
+     * Default: enables for primary device only
+     * Override: Multi-device cameras enable for all endpoints
+     */
+    virtual void enableBlockingForAllDevices();
+
     // IMU
     IMUDevice::IMUDeviceInfo getIMUDeviceInfo();
     //virtual int ConfigIMU(){ return APC_OK; }
@@ -302,7 +353,8 @@ public:
 
     int getModuleID();
     int setModuleID(uint8_t nID);
-    
+    void CopyFromG1toG2();
+    void copy_file_to_g2(int fileIndex);
     int toString(char *buffer, int bufferLength);
 
     std::vector<APC_STREAM_INFO> getColorStreamInfo() { return mColorStreamInfo; }
@@ -322,7 +374,32 @@ protected:
     virtual int32_t getZDTableDataType();
     virtual int32_t getZDTableSize();
     virtual int getZDTableIndex();
-    
+
+    /**
+     * @brief Convert depth raw data type to APCImageType format
+     *
+     * Default implementation delegates to SDK's APCImageType::DepthDataTypeToDepthImageType.
+     * Derived classes can override for chip-specific formats (e.g., eSP936).
+     *
+     * @param depthFormat Raw depth format value from DEPTH_RAW_DATA_TYPE
+     * @return APCImageType::Value representing depth bit depth
+     */
+    virtual APCImageType::Value getDepthImageType(uint32_t depthFormat) const;
+
+    /**
+     * @brief Get depth data type for point cloud processing
+     *
+     * Converts device-specific depth format to SDK-compatible depth data type.
+     *
+     * Default: Returns mDepthFormat directly (most chips use SDK depth types)
+     * eSP936 (80363): Maps eSP936-specific formats (0x18-0x1b) to SDK equivalents
+     *   - 0x18/0x1a (11-bit formats) -> APC_DEPTH_DATA_11_BITS
+     *   - 0x19/0x1b (14-bit formats) -> APC_DEPTH_DATA_14_BITS
+     *
+     * @return SDK-compatible depth data type for point cloud APIs
+     */
+    virtual uint32_t getPointCloudDepthType() const;
+
     virtual void updateColorPalette();
     
     virtual int configurePointCloudInfo(bool isUseCached);
@@ -441,13 +518,10 @@ public:
     friend class libeYs3D::video::DepthFrameProducer;
     friend class libeYs3D::video::PCFrameProducer;
 
-    friend class MemoryAllocator<uint8_t>;
-    friend class MemoryAllocator<uint32_t>;
-    friend class MemoryAllocator<float>;
-    friend void* MemoryAllocator__allocate(CameraDevice *cameraDevice, size_t size);
-    friend void MemoryAllocator__deallocate(CameraDevice *cameraDevice, void *p, size_t size);
-    friend size_t MemoryAllocator__max_size(CameraDevice *cameraDevice);
-    
+
+    friend APCImageType::Value libeYs3D::video::depth_raw_type_to_depth_image_type(
+                                                              uint32_t depth_raw_type,
+                                                              const libeYs3D::devices::CameraDevice* cameraDevice);
     friend int libeYs3D::video::color_image_produce_bgr_frame(const CameraDevice *cameraDevice,
                                                               libeYs3D::video::Frame *frame);
     friend int libeYs3D::video::depth_image_produce_rgb_frame(const CameraDevice *cameraDevice,
@@ -468,22 +542,6 @@ public:
     base::MessageChannel<libeYs3D::video::Frame, kMaxFrames> mDFreeQueue;
 #endif
 
-#ifdef DEVICE_MEMORY_ALLOCATOR
-protected:
-    // memory allocation
-    std::map<void *, size_t>mMemories;
-    
-    void *requestMemory(size_t size);
-    void returnMemory(const void *memory, size_t size);
-    int preallocateMemory();
-    void releasePreallocatedMemory();
-
-	MemoryAllocator<uint16_t> mPixelWordMemoryAllocator;
-    MemoryAllocator<uint8_t> mPixelByteMemoryAllocator;
-    MemoryAllocator<float> mPixelFloatMemoryAllocator;
-	
-    
-#endif
 private:
     std::mutex mPclInfoLck;
     int getRectifyMatLogDataTwice();

@@ -8,8 +8,7 @@
 #define EYS3DPY_POSTPROCESSOPTIONS_H
 
 class PostProcessOptions {
-public:
-
+private:
     int mSpatialFilterKernelSize = 5;          // 3 - 15 Larger smoother. This value should be in odd.
     float mSpatialFilterOutlierThreshold = 16; // 1 - 64 Smaller filter more
     int mDecimationFactor = 0;                 // Ceil(resolution / factor / 4) * 4
@@ -17,7 +16,8 @@ public:
     int mFilteredWidth = 0;
     int mFilteredHeight = 0;
 
-    bool mEnabled = false;
+    bool mEnabledDecimation = false;
+    bool mEnabledPostProcess = false;
 
     // Color post process parameter
     int mResizedWidth = 0;
@@ -25,6 +25,7 @@ public:
     float mColorResizeFactor = 1.0f;
     bool mColorPostProcessEnabled = false;
 
+public:
     PostProcessOptions() : PostProcessOptions(5, 16.0f, 1) { }
 
     PostProcessOptions(const int spatialKernelSize, const float spatialOutlierThreshold, const int decimationFactor) {
@@ -86,12 +87,24 @@ public:
      * Control over depth post process filter enablement. Could be switched when device is streaming.
      * @param enable
      */
-    void enable(const bool enable) {
-        mEnabled = enable;
+    inline bool isEnabledPostProcess() {
+        return mEnabledPostProcess;
     }
 
-    inline bool isEnabled() const {
-        return mEnabled;
+    void enablePostProcess(const bool enable) {
+        mEnabledPostProcess = enable;
+    }
+
+    /**
+     * Control over depth decimation subsample filter enablement. Could be switched when device is streaming.
+     * @param enable
+     */
+    void enableDepthDecimation(const bool enable) {
+        mEnabledDecimation = enable;
+    }
+
+    inline bool isEnabledDepthDecimation() const {
+        return mEnabledDecimation;
     }
 
     /**

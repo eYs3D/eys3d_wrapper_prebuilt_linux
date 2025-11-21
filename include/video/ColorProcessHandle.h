@@ -13,6 +13,7 @@
 #include "PostProcessOptions.h"
 #include "video/Frame.h"
 #include "PostProcessHandle.h"
+#include "devices/AlignedAllocator.h"
 
 using PostProcessHandleCallback = std::function<int(bool)>;
 
@@ -32,7 +33,7 @@ private:
     size_t mResizedHeight = 0;
     bool mIsEnable;
     PostProcessHandleCallback& mCallback;
-    std::vector<uint8_t> mCachedResizedBuffer;
+    std::vector<uint8_t, libeYs3D::devices::AlignedAllocator<uint8_t>> mCachedResizedBuffer;
     float mResizeFactor = 1.0f;
 
 public:

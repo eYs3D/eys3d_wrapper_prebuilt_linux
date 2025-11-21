@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "devices/MemoryAllocator.h"
+#include "devices/AlignedAllocator.h"
 #include "devices/model/DepthAccuracyOptions.h"
 #include "sensors/SensorData.h"
 #include "base/synchronization/Lock.h"
@@ -39,30 +39,17 @@ public:
     uint16_t getZValue(uint16_t depth) const;
     uint64_t processedBufferSize;   // e.g. 720p Decimation filter resized dataVec to 360p, but capacity is still the same.
 
-#ifdef DEVICE_MEMORY_ALLOCATOR
-    std::vector<uint8_t, libeYs3D::devices::MemoryAllocator<uint8_t>> dataVec;
-#else
-    std::vector<uint8_t> dataVec;
-#endif
+    std::vector<uint8_t, libeYs3D::devices::AlignedAllocator<uint8_t>> dataVec;
 
     uint64_t actualZDDepthBufferSize;   // the actual buffer size when converting from raw data to ZD table depth
     uint64_t zdDepthBufferSize;         // the image buffer size of zdDepthVec
 
-//TODO:  DEVICE_MEMORY_ALLOCATOR support is not ready for zdDepthVec
-#ifdef DEVICE_MEMORY_ALLOCATOR
-    std::vector<uint16_t, libeYs3D::devices::MemoryAllocator<uint16_t>> zdDepthVec;
-#else
-    std::vector<uint16_t> zdDepthVec;
-#endif
+    std::vector<uint16_t, libeYs3D::devices::AlignedAllocator<uint16_t>> zdDepthVec;
 
     uint64_t actualRGBBufferSize;   // the actual buffer size when converting the image
     uint64_t rgbBufferSize;         // the image buffer size of imageVec
 
-#ifdef DEVICE_MEMORY_ALLOCATOR
-    std::vector<uint8_t, libeYs3D::devices::MemoryAllocator<uint8_t>> rgbVec;
-#else
-    std::vector<uint8_t> rgbVec;
-#endif
+    std::vector<uint8_t, libeYs3D::devices::AlignedAllocator<uint8_t>> rgbVec;
 
     /*
      * for color frame:
@@ -99,14 +86,6 @@ public:
           uint64_t zdDepthBufferSize = 0, uint16_t initZDDepthVal = 0,
           uint64_t rgbBufferSize = 0, uint8_t initRGBVal = 0);
     
-#ifdef DEVICE_MEMORY_ALLOCATOR
-
-	Frame(uint64_t dataBufferSize, uint8_t initDataVal,
-		  uint64_t zdDepthBufferSize, uint16_t initZDDepthVal,
-		  uint64_t rgbBufferSize, uint8_t initRGBVal,
-		  libeYs3D::devices::MemoryAllocator<uint8_t> &byte_allocator,
-		  libeYs3D::devices::MemoryAllocator<uint16_t> &word_allocator);
-#endif
 
     int toString(char *buffer, int bufferLength) const;
     int toStringSimple(char *buffer, int bufferLength) const;
@@ -118,6 +97,30 @@ public:
     int saveToFile(const char *dirPath) const;
     
     void clone(const Frame *frame);
+
+    // High-performance buffer swap (O(1) instead of O(n) memcpy)
+    // Only swaps vector buffers, preserves metadata integrity
+    void swapBuffersOnly(Frame& other) {
+        dataVec.swap(other.dataVec);
+        zdDepthVec.swap(other.zdDepthVec);
+        rgbVec.swap(other.rgbVec);
+        // No metadata swap - preserves frame identity
+    }
+    
+    // Fast metadata copy for callback frame setup
+    void copyMetadata(const Frame* source) {
+        width = source->width;
+        height = source->height;
+        dataFormat = source->dataFormat;
+        serialNumber = source->serialNumber;
+        tsUs = source->tsUs;
+        actualDataBufferSize = source->actualDataBufferSize;
+        actualRGBBufferSize = source->actualRGBBufferSize;
+        actualZDDepthBufferSize = source->actualZDDepthBufferSize;
+        rgbFormat = source->rgbFormat;
+        processedBufferSize = source->processedBufferSize;
+        interleaveMode = source->interleaveMode;
+    }
 
     // Move constructor
     Frame(Frame&& f) = default;

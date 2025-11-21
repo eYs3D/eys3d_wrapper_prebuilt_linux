@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "devices/MemoryAllocator.h"
+#include "devices/AlignedAllocator.h"
 #include "sensors/SensorData.h"
 #include "GeneralFrame.h"
 
@@ -25,15 +25,9 @@ public:
     int32_t width;
     int32_t height;
 
-#ifdef DEVICE_MEMORY_ALLOCATOR
-    std::vector<uint8_t, libeYs3D::devices::MemoryAllocator<uint8_t>> drgbDataVec;
-    std::vector<uint8_t, libeYs3D::devices::MemoryAllocator<uint8_t>> rgbDataVec;
-    std::vector<float, libeYs3D::devices::MemoryAllocator<float>> xyzDataVec;
-#else
-    std::vector<uint8_t> drgbDataVec;
-    std::vector<uint8_t> rgbDataVec;
-    std::vector<float> xyzDataVec;
-#endif
+    std::vector<uint8_t, libeYs3D::devices::AlignedAllocator<uint8_t>> drgbDataVec;
+    std::vector<uint8_t, libeYs3D::devices::AlignedAllocator<uint8_t>> rgbDataVec;
+    std::vector<float, libeYs3D::devices::AlignedAllocator<float>> xyzDataVec;
     /* for performance benchmark purpose in micro seconds*/
     int64_t transcodingTimeUs;
     int64_t colorFrameTsUs;
@@ -44,11 +38,6 @@ public:
     // Allocates the space with capacity |cap| and sets each element to |val|
     PCFrame(uint32_t pixelCount = 0, uint8_t val = 0, float fVal = 0.0);
 
-#ifdef DEVICE_MEMORY_ALLOCATOR
-    PCFrame(uint32_t pixelCount, uint8_t val, float fVal,
-            libeYs3D::devices::MemoryAllocator<uint8_t> &byteAllocator,
-            libeYs3D::devices::MemoryAllocator<float> &floatAllocator);
-#endif
 
     int toString(char *buffer, int bufferLength) const;
     int toStringSimple(char *buffer, int bufferLength) const;

@@ -11,10 +11,10 @@
 #else
 #  include "eSPDI_def.h"
 #endif
-//#include "devices/CameraDevice.h"
 
 #include <stdint.h>
 
+#define COLOR_ERR_NUM 3
 // forward declaration
 namespace libeYs3D    {
     namespace devices    {
@@ -29,9 +29,21 @@ namespace video    {
 
 struct Frame;
 
-static inline APCImageType::Value depth_raw_type_to_depth_image_type(uint32_t depth_raw_type)    {
-    return APCImageType::DepthDataTypeToDepthImageType((unsigned short)depth_raw_type);
-}
+/**
+ * @brief Convert depth raw data type to APCImageType format
+ *
+ * Uses polymorphic dispatch if cameraDevice is provided (chip-specific handling).
+ * Falls back to SDK's generic implementation if cameraDevice is nullptr.
+ *
+ * Implementation is in coders.cpp (cannot be inline due to incomplete type).
+ *
+ * @param depth_raw_type Raw depth format value
+ * @param cameraDevice Pointer to camera device (optional, defaults to nullptr)
+ * @return APCImageType::Value representing depth bit depth
+ */
+APCImageType::Value depth_raw_type_to_depth_image_type(
+    uint32_t depth_raw_type,
+    const libeYs3D::devices::CameraDevice* cameraDevice = nullptr);
 
 static inline int get_color_image_format_byte_length_per_pixel(APCImageType::Value format)    {
     switch (format){

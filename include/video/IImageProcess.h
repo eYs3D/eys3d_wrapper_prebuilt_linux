@@ -27,6 +27,11 @@ public:
      * @return
      */
     virtual inline int32_t getFilteredHeight() = 0;
+
+    /**
+     * Virtual destructor to ensure proper cleanup of derived classes.
+     */
+    virtual ~IImageProcess() = default;
 };
 
 } // video
