@@ -14,19 +14,19 @@ public:
      * @param Frame f the frame pointer to be processed.
      * @return Suggest developers return APC_POSTPROCESS_NOT_INIT APC_OK
      */
-    virtual inline int process(libeYs3D::video::Frame* f) = 0;
+    virtual int process(libeYs3D::video::Frame* f) = 0;
     /**
      * Filtered width: For example decimation filter is sub-sampling the depth data, so it will shrink the width.
      * Override this interface for any filter that gives a new size.
      * @return
      */
-    virtual inline int32_t getFilteredWidth() = 0;
+    virtual int32_t getFilteredWidth() = 0;
     /**
      * Filtered height: For example decimation filter is sub-sampling the depth data, so it will shrink the width.
      * Override this interface for any filter that gives a new size.
      * @return
      */
-    virtual inline int32_t getFilteredHeight() = 0;
+    virtual int32_t getFilteredHeight() = 0;
 
     /**
      * Virtual destructor to ensure proper cleanup of derived classes.

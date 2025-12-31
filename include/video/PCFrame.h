@@ -48,6 +48,27 @@ public:
     
     void clone(const PCFrame *pcFrame);
 
+    // High-performance buffer swap (O(1) instead of O(n) memcpy)
+    // Only swaps vector buffers, preserves metadata integrity
+    void swapBuffersOnly(PCFrame& other) {
+        drgbDataVec.swap(other.drgbDataVec);
+        rgbDataVec.swap(other.rgbDataVec);
+        xyzDataVec.swap(other.xyzDataVec);
+        // No metadata swap - preserves frame identity
+    }
+
+    // Fast metadata copy for callback frame setup
+    void copyMetadata(const PCFrame* source) {
+        width = source->width;
+        height = source->height;
+        serialNumber = source->serialNumber;
+        tsUs = source->tsUs;
+        transcodingTimeUs = source->transcodingTimeUs;
+        colorFrameTsUs = source->colorFrameTsUs;
+        depthFrameTsUs = source->depthFrameTsUs;
+        interleaveMode = source->interleaveMode;
+    }
+
     // Move constructor
     PCFrame(PCFrame&& f) = default;
     // Move assignment

@@ -25,6 +25,7 @@
 #include "Constants.h"
 #include "utils.h"
 #include <mutex>
+#include <string>
 #ifdef WIN32
 #  include "eSPDI_Common.h"
 #  include "magic.h"
@@ -104,27 +105,81 @@ namespace devices    {
 struct CameraDeviceInfo    {
     DEVINFORMATION devInfo;
 
-#ifdef WIN32
+    // RAII-managed storage for device name string.
+    // devInfo.strDevName (char*) points to this storage after construction.
+    // This ensures the string lives as long as CameraDeviceInfo.
+    std::string deviceNameStorage;
+
+    // Initialize all platforms consistently
     char firmwareVersion[PATH_MAX] = "Unsupported";
     char serialNumber[PATH_MAX] = "Unsupported";
     char busInfo[PATH_MAX] = "Unsupported";
     char modelName[PATH_MAX] = "Unsupported";
-#else
-    char firmwareVersion[PATH_MAX];
-    char serialNumber[PATH_MAX];
-    char busInfo[PATH_MAX];
-    char modelName[PATH_MAX];
-#endif
     USB_PORT_TYPE usbPortType;
 
     CameraDevice *cameraDevice;
 
-    CameraDeviceInfo(DEVINFORMATION *info)    {
+    CameraDeviceInfo(DEVINFORMATION *info) {
         this->devInfo = *info;
+        // Deep copy strDevName into our own storage
+        if (info->strDevName) {
+            deviceNameStorage = std::string(info->strDevName);
+            this->devInfo.strDevName = const_cast<char*>(deviceNameStorage.c_str());
+        } else {
+            this->devInfo.strDevName = nullptr;
+        }
         usbPortType = USB_PORT_TYPE_2_0;
     }
 
-    CameraDeviceInfo()    { usbPortType = USB_PORT_TYPE_2_0; }
+    CameraDeviceInfo() {
+        devInfo.strDevName = nullptr;
+        usbPortType = USB_PORT_TYPE_2_0;
+    }
+
+    // DELETE move operations - moving would invalidate strDevName pointer
+    CameraDeviceInfo(CameraDeviceInfo&&) = delete;
+    CameraDeviceInfo& operator=(CameraDeviceInfo&&) = delete;
+
+    // Custom copy constructor - must copy all fields including char arrays
+    CameraDeviceInfo(const CameraDeviceInfo& other)
+        : devInfo(other.devInfo),
+          deviceNameStorage(other.deviceNameStorage),
+          usbPortType(other.usbPortType),
+          cameraDevice(other.cameraDevice) {
+        // Copy char arrays using snprintf (guaranteed null-termination, bounds-safe)
+        snprintf(firmwareVersion, sizeof(firmwareVersion), "%s", other.firmwareVersion);
+        snprintf(serialNumber, sizeof(serialNumber), "%s", other.serialNumber);
+        snprintf(busInfo, sizeof(busInfo), "%s", other.busInfo);
+        snprintf(modelName, sizeof(modelName), "%s", other.modelName);
+        // Repoint strDevName to OUR copy of the string
+        if (!deviceNameStorage.empty()) {
+            devInfo.strDevName = const_cast<char*>(deviceNameStorage.c_str());
+        } else {
+            devInfo.strDevName = nullptr;
+        }
+    }
+
+    // Custom copy assignment - must copy all fields including char arrays
+    CameraDeviceInfo& operator=(const CameraDeviceInfo& other) {
+        if (this != &other) {
+            devInfo = other.devInfo;
+            deviceNameStorage = other.deviceNameStorage;
+            usbPortType = other.usbPortType;
+            cameraDevice = other.cameraDevice;
+            // Copy char arrays using snprintf (guaranteed null-termination, bounds-safe)
+            snprintf(firmwareVersion, sizeof(firmwareVersion), "%s", other.firmwareVersion);
+            snprintf(serialNumber, sizeof(serialNumber), "%s", other.serialNumber);
+            snprintf(busInfo, sizeof(busInfo), "%s", other.busInfo);
+            snprintf(modelName, sizeof(modelName), "%s", other.modelName);
+            // Repoint strDevName to OUR copy of the string
+            if (!deviceNameStorage.empty()) {
+                devInfo.strDevName = const_cast<char*>(deviceNameStorage.c_str());
+            } else {
+                devInfo.strDevName = nullptr;
+            }
+        }
+        return *this;
+    }
 
     int toString(char *buffer, int bufferLength) const;
     int toString(std::string &string) const;
@@ -153,16 +208,86 @@ public:
         int nRightFy = 0;
     };
 
-    /*
-     * colorFormat: libeYs3D::video::COLOR_RAW_DATA_TYPE
-     * depthFormat: libeYs3D::video::DEPTH_RAW_DATA_TYPE
-     * depthDataTransferCtrl: How depth frame data is transcoded to RGB
-     *     DEPTH_IMG_COLORFUL_TRANSFER, DEPTH_IMG_GRAY_TRANSFER, DEPTH_IMG_NON_TRANSFER (default)
-     * 
-     * return
-     *     0 (APC_OK): succeed
-     *     < 0           : align with with error codes defined in eSPDI_def.h
-     *     1:            : enabled, please realease the stream before it can be enabled again.
+    /**
+     * @brief Initialize camera stream with callback-based frame delivery (Pattern 1: Callback)
+     *
+     * Opens the camera device and starts frame production. Frames are delivered via callbacks
+     * in producer threads. Callbacks execute synchronously - processing time affects frame rate.
+     *
+     *
+     * @param colorFormat Color pixel format
+     *     - COLOR_RAW_DATA_YUY2: YUV422 packed (2 bytes/pixel, most common)
+     *     - COLOR_RAW_DATA_MJPG: Motion JPEG compressed
+     *
+     * @param colorWidth  Color frame width in pixels (0 to disable color stream)
+     * @param colorHeight Color frame height in pixels (0 to disable color stream)
+     *     - Must match a supported resolution
+     *
+     * @param actualFps Target frame rate (frames per second)
+     *     - Typical values: 30, 60 (device-dependent)
+     *
+     * @param depthFormat Depth data format (see video/video.h for full list)
+     *     - Standard modes:
+     *       - DEPTH_RAW_DATA_11_BITS: 2 bytes/pixel (11-bit), rectified
+     *       - DEPTH_RAW_DATA_14_BITS: 2 bytes/pixel (14-bit), rectified
+     *     - Interleave modes (ILM) - single endpoint for color+depth:
+     *       - DEPTH_RAW_DATA_ILM_11_BITS: 11-bit interleave
+     *       - DEPTH_RAW_DATA_ILM_14_BITS: 14-bit interleave
+     *     - eSP936 chip (80363) specific:
+     *       - DEPTH_RAW_DATA_ORANGE_11_BITS (0x18): 11-bit non-ILM
+     *       - DEPTH_RAW_DATA_ORANGE_14_BITS (0x19): 14-bit non-ILM
+     *       - DEPTH_RAW_DATA_ORANGE_11_BITS_ILM (0x1a): 11-bit interleave
+     *       - DEPTH_RAW_DATA_ORANGE_14_BITS_ILM (0x1b): 14-bit interleave
+     *
+     * @param depthWidth  Depth frame width in pixels (0 to disable depth stream)
+     * @param depthHeight Depth frame height in pixels (0 to disable depth stream)
+     *
+     * @param depthDataTransferCtrl Depth-to-RGB visualization mode for rgbVec output
+     *     - DEPTH_IMG_NON_TRANSFER: No RGB conversion, rgbVec will not fill in color palette view, saves computation.
+     *     - DEPTH_IMG_COLORFUL_TRANSFER: Convert to color heatmap visualization
+     *     - DEPTH_IMG_GRAY_TRANSFER: Convert to grayscale visualization
+     *
+     * @param ctrlMode Frame synchronization control (deprecated)
+     *     - IMAGE_SN_NONSYNC (0): Reserved
+     *     - IMAGE_SN_SYNC (1): Reserved
+     *
+     * @param rectifyLogIndex Calibration table index for depth-to-distance conversion
+     *     - Selects which rectification log data to use from device
+     *     - Typically 0 for default calibration, please read the ModeConfig.db for more information
+     *     G100+ device read the RECTIFY_FILE_INDEX column
+     *     G62 device we will setup well by the CameraDevice itself.
+     *
+     * @param colorImageCallback Called for each color frame (nullptr to disable)
+     *     - Signature: bool callback(const Frame* frame)
+     *     - Return value is currently unused (reserved for future use)
+     *     - Frame is valid only during callback execution
+     *     - WARNING: Long processing blocks producer thread
+     *
+     * @param depthImageCallback Called for each depth frame (nullptr to disable)
+     *     - Signature: bool callback(const Frame* frame)
+     *     - frame->dataVec: Raw depth data
+     *     - frame->zdDepthVec: ZD-table converted depth (mm)
+     *     - frame->rgbVec: Visualization (if depthDataTransferCtrl != DEPTH_IMG_NON_TRANSFER)
+     *
+     * @param pcFrameCallback Called for each point cloud frame (nullptr to disable)
+     *     - Signature: bool callback(const PCFrame* frame)
+     *     - Requires both color and depth streams active
+     *     - frame->xyzDataBuffer: XYZ coordinates
+     *     - frame->rgbDataBuffer: Per-point RGB colors
+     *
+     * @param imuDataCallback Called for each IMU sample (nullptr to disable, optional)
+     *     - Signature: bool callback(const SensorData* data)
+     *     - Only if device supports IMU (check isIMUDeviceSupported())
+     *
+     * @return
+     *     - 0 (APC_OK): Success
+     *     - 1: Stream already initialized (call closeStream() first)
+     *     - <0: Error code (see eSPDI_def.h for APC_* error codes)
+     *
+     * @note After initStream(), call enableStream() to start frame delivery.
+     * @note Call closeStream() before calling initStream() again.
+     *
+     * @see closeStream(), enableStream(), pauseStream()
      */
     virtual int initStream(libeYs3D::video::COLOR_RAW_DATA_TYPE colorFormat,
                            int32_t colorWidth, int32_t colorHeight, int32_t actualFps,
@@ -176,6 +301,19 @@ public:
                            libeYs3D::video::PCProducer::PCCallback pcFrameCallback,
                            libeYs3D::sensors::SensorDataProducer::AppCallback imuDataCallback = nullptr);
 
+    /**
+     * @brief Initialize camera stream with Pipeline-based frame retrieval (Pattern 2: Pipeline)
+     *
+     * Same parameters as callback version, but returns a Pipeline for pull-based access.
+     * Use pipeline->waitForColorFrame() / waitForDepthFrame() to retrieve frames.
+     *
+     * Pipeline uses LatestFrameBuffer internally - only the most recent frame is kept.
+     * If consumer is slower than producer, intermediate frames are silently discarded.
+     *
+     * @return shared_ptr<Pipeline> on success, nullptr on failure
+     *
+     * @see Pipeline class documentation for usage patterns
+     */
     std::shared_ptr<Pipeline>
     initStream(libeYs3D::video::COLOR_RAW_DATA_TYPE colorFormat,
                int32_t colorWidth, int32_t colorHeight, int32_t actualFps,
@@ -185,6 +323,18 @@ public:
                CONTROL_MODE ctrlMode,
                int rectifyLogIndex);
 
+    /**
+     * @brief Initialize camera stream with synchronized FrameSet retrieval (Pattern 3: FrameSetPipeline)
+     *
+     * Same parameters as callback version, but returns a FrameSetPipeline for
+     * synchronized color+depth+PC frame retrieval by serial number.
+     *
+     * Use pipeline->waitForFrameSet() to get temporally-aligned frames.
+     *
+     * @return shared_ptr<FrameSetPipeline> on success, nullptr on failure
+     *
+     * @see FrameSetPipeline class documentation for usage patterns
+     */
     std::shared_ptr<FrameSetPipeline>
     initStreamFS(libeYs3D::video::COLOR_RAW_DATA_TYPE colorFormat,
                  int32_t colorWidth, int32_t colorHeight, int32_t actualFps,
