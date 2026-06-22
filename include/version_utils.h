@@ -8,7 +8,7 @@
 
 #define WRAPPER_VERSION "1.0.0.1"
 #define GIT_BRANCH ""
-#define GIT_HASH "79fcb5b"
-#define BUILD_TIMESTAMP "2025-12-24 07:34:22"
+#define GIT_HASH "00f365d"
+#define BUILD_TIMESTAMP "2026-06-22 07:22:38"
 
 #endif // VERSION_UTILS_H_IN
