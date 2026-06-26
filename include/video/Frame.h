@@ -134,6 +134,16 @@ public:
     bool toCallback = false;
     bool toPCCallback = false;
     bool interleaveMode = false;
+
+private:
+    // Per-frame depth-format classification cache. dataFormat is constant for the life of a
+    // frame, so getDepth()/getZValue() (called per pixel) compute this once via
+    // ensureDepthClassification() instead of re-classifying on every pixel. Stored as plain
+    // integers so this header needs no APCImageType include.
+    mutable uint8_t  mDepthImageTypeCache    = 0;   // holds an APCImageType::Value
+    mutable uint32_t mDepthBytePerPixelCache = 0;
+    mutable bool     mDepthClassCached       = false;
+    void ensureDepthClassification() const;         // defined in Frame.cpp
 };
 
 } // namespace video

@@ -47,7 +47,23 @@ public:
         unsigned short videoModeD11OrColorOnly = 0xff; // v2 table added
         unsigned short videoModeZ14 = 0xff;            // v2 table added
         int rectifyFileIndex = 0xff;                   // v2 table added
-        MODE_CONFIG() : eDecodeType_L( YUYV ), eDecodeType_K( YUYV ),  eDecodeType_T( YUYV ), iInterLeaveModeFPS( 0 ) {}
+        // used by grape (eSP936 / 80363) - read straight from the table
+        int                iL_DataType;
+        int                iK_DataType;
+        int                iT_DataType;
+        int                iL_VideoMode;
+        int                iK_VideoMode;
+        int                iT_VideoMode;
+        int                iL_FPS;
+        int                iK_FPS;
+        int                iT_FPS;
+        int                iL_Index;
+        int                iK_Index;
+        std::vector< int > iT_Index;
+        MODE_CONFIG() : eDecodeType_L( YUYV ), eDecodeType_K( YUYV ),  eDecodeType_T( YUYV ), iInterLeaveModeFPS( 0 ),
+                        iL_DataType( 0 ), iK_DataType( 0 ), iT_DataType( 0 ),
+                        iL_VideoMode( 0 ), iK_VideoMode( 0 ), iT_VideoMode( 0 ),
+                        iL_FPS( 0 ), iK_FPS( 0 ), iT_FPS( 0 ), iL_Index( 0 ), iK_Index( 0 ) {}
     };
     const std::vector< MODE_CONFIG >& GetModeConfigList( const int iPID );
     IMU_TYPE GetIMU_Type( const int iPID );

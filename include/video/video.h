@@ -82,10 +82,16 @@ typedef enum    {
     DEPTH_RAW_DATA_SCALE_DOWN_ILM_14_BITS_COMBINED_RECTIFY = APC_DEPTH_DATA_SCALE_DOWN_ILM_14_BITS_COMBINED_RECTIFY,
     DEPTH_RAW_DATA_SCALE_DOWN_ILM_11_BITS_COMBINED_RECTIFY = APC_DEPTH_DATA_SCALE_DOWN_ILM_11_BITS_COMBINED_RECTIFY,
 
-    DEPTH_RAW_DATA_ORANGE_11_BITS = 0x18,       // 11-bit
-    DEPTH_RAW_DATA_ORANGE_14_BITS = 0x19,       // 14-bit
-    DEPTH_RAW_DATA_ORANGE_11_BITS_ILM = 0x1a,   // 11-bit Iterleave mode
-    DEPTH_RAW_DATA_ORANGE_14_BITS_ILM = 0x1b    // 14-bit Interleave mode
+    DEPTH_RAW_DATA_ORANGE_11_BITS = 0x18,       // 11-bit            (legacy firmware)
+    DEPTH_RAW_DATA_ORANGE_14_BITS = 0x19,       // 14-bit            (legacy firmware)
+    DEPTH_RAW_DATA_ORANGE_11_BITS_ILM = 0x1a,   // 11-bit interleave (legacy firmware)
+    DEPTH_RAW_DATA_ORANGE_14_BITS_ILM = 0x1b,   // 14-bit interleave (legacy firmware)
+
+    // New firmware generation (_V2): same semantics as above, transport base +0x30
+    DEPTH_RAW_DATA_ORANGE_11_BITS_V2 = 0x48,       // 11-bit            (new firmware)
+    DEPTH_RAW_DATA_ORANGE_14_BITS_V2 = 0x49,       // 14-bit            (new firmware)
+    DEPTH_RAW_DATA_ORANGE_11_BITS_ILM_V2 = 0x4a,   // 11-bit interleave (new firmware)
+    DEPTH_RAW_DATA_ORANGE_14_BITS_ILM_V2 = 0x4b    // 14-bit interleave (new firmware)
 } DEPTH_RAW_DATA_TYPE;
 
 } // namespace video
